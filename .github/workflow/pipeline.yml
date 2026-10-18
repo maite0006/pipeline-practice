@@ -1,0 +1,66 @@
+name: Pipeline Practica
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+env:
+  APP_NAME: practica-pipeline
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Correr tests
+        run: pytest -v
+
+  build:
+    name: Build imagen + sitio
+    runs-on: ubuntu-latest
+    needs: tset
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Generar tag
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "value=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Build imagen Docker
+        run: docker build -t $APP_NAME:${{ steps.tag.outputs.value }} .
+
+      - name: Correr la app dentro del contenedor
+        run: docker run --rm $APP_NAME:${{ steps.tag.outputs.value }}
+
+      - name: Armar sitio con info del build
+        run: |
+          INFO="Imagen: $APP_NAME:${{ steps.tag.outputs.value }} | Branch: ${{ github.ref_name }} | Autor: ${{ github.actor }}"
+          sed -i "s#BUILD_INFO#$INFO#" site/index.html
+
+      - name: Subir sitio como artefacto de Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+        path: public/
+
+  deploy:
+    name: Deploy a GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
