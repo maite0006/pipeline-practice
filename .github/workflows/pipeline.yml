@@ -55,7 +55,7 @@ jobs:
       - name: Subir sitio como artefacto de Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: public/
+          path: site/
 
   deploy:
     name: Deploy a GitHub Pages
@@ -69,7 +69,3 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: bajar sitio como artefacto de Pages
-        uses: actions/download-pages-artifact@v3
-        with:
-          path: public/
